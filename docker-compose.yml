@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  moyu-api:
+    build: .
+    container_name: moyu-calendar-api
+    ports:
+      - "5000:5000"
+    environment:
+      - PORT=5000
+      - DEBUG=false
+    restart: unless-stopped
+    networks:
+      - astrbot_default
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.moyu-api.rule=Host(`localhost`)"
+      - "traefik.http.services.moyu-api.loadbalancer.server.port=5000"
+
+networks:
+  astrbot_default:
+    external: true
