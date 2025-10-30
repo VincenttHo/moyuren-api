@@ -12,6 +12,8 @@ import json
 from typing import Optional, Dict, Any, List
 import logging
 import urllib.parse
+from PIL import Image
+import io
 
 # 配置变量 - 容易修改的微信公众号链接
 DEFAULT_WECHAT_URL = "https://mp.weixin.qq.com/mp/appmsgalbum?__biz=MzAxOTYyMzczNA==&action=getalbum&album_id=3743225907507462153&subscene=0&scenenote=https%3A%2F%2Fmp.weixin.qq.com%2Fs%3F__biz%3DMzAxOTYyMzczNA%3D%3D%26mid%3D2454356650%26idx%3D3%26sn%3Db1b9c97cc7bf61037ec23358ae49fc21%26chksm%3D8d7e87d0789afd79bba17838c0ebc30032a48ec592b15ce631c617d8f7b6489ae1854217123d%26xtrack%3D1%26scene%3D0%26subscene%3D7%26clicktime%3D1756172088%26enterid%3D1756172088%26sessionid%3D0%26ascene%3D7%26fasttmpl_type%3D0%26fasttmpl_fullversion%3D7876133-zh_CN-zip%26fasttmpl_flag%3D0%26realreporttime%3D1756172088652%26devicetype%3Dandroid-34%26version%3D2800315a%26nettype%3DWIFI%26abtest_cookie%3DAAACAA%253D%253D%26lang%3Dzh_CN%26session_us%3Dgh_a589f1b94a1b%26countrycode%3DCN%26exportkey%3Dn_ChQIAhIQA1t5yUVrdVlsNJ%252BopF7QRhLlAQIE97dBBAEAAAAAAC95BmOr4xkAAAAOpnltbLcz9gKNyK89dVj0h%252BwXpZKnm7RtJodhDfgbbsdkbhy7ZitAguP5Two94sEUtw%252FYDRFprtqBkW2tlQNNvpF01VvSM4xB8RMqIaTysNoP1JE85ZM8veAIqTDFgJlwFhmTr2nWFg6udZ8Nm%252FQ8mFP8oMFVh6hWIAaevoH8Y8NcrOCQ%252FJ1vMpBvp5yRy7HPltQZodArcVo7xi5OWzUWUx9%252BV%252BG31dFR74uONPXkZ26YqV5Bj5Uy%252Bm8UxYBKe4hBpDQxxpT%252Fzqzrv%252BKrEqw%253D%26pass_ticket%3DV35uCaA010EVXzou5598fycnm212HGyeKi21hYdh%252BSZvDprAS0eJTLODJbUV9tt2%26wx_header%3D3&nolastread=1#wechat_redirect"
@@ -233,7 +235,7 @@ class MoyuScraper:
         if not images:
             return None
         
-        # 改进的日历图片识别逻辑
+        # 优化的摸鱼人日历图片识别逻辑
         calendar_candidates = []
         total_images = len(images)
         
@@ -244,69 +246,105 @@ class MoyuScraper:
             ratio = img.get('data_ratio')
             img_class = img.get('class', '')
             index = img.get('index', 0)
+            img_url = img.get('url', '')
+            alt_text = img.get('alt', '').lower()
             
-            # 跳过太小的图片（可能是图标、头像等）
-            if width and width.isdigit() and int(width) < 300:
+            # 跳过明显不是日历的小图片
+            if width and width.isdigit() and int(width) < 400:
                 continue
             
-            # 位置权重：中间位置的图片得分更高
-            if total_images > 1:
-                middle_start = total_images * 0.2  # 前20%之后
-                middle_end = total_images * 0.8    # 后20%之前
-                if middle_start <= index <= middle_end:
-                    score += 30  # 中间位置加分
-                elif index < total_images * 0.1:  # 最前面的图片可能是头图
-                    score -= 10
-            
-            # 尺寸权重：较大的正方形或接近正方形的图片
+            # 摸鱼人日历特征识别
+            # 1. 尺寸特征：摸鱼人日历通常是正方形或接近正方形
             if width and height and width.isdigit() and height.isdigit():
                 w, h = int(width), int(height)
-                # 日历通常是正方形或略微长方形
-                if 0.8 <= w/h <= 1.5:  # 宽高比在0.8-1.5之间
+                aspect_ratio = w / h
+                
+                # 摸鱼人日历的典型宽高比范围
+                if 0.9 <= aspect_ratio <= 1.1:  # 接近正方形
+                    score += 40
+                elif 0.8 <= aspect_ratio <= 1.3:  # 略微长方形
+                    score += 25
+                
+                # 典型的摸鱼人日历尺寸（通常在600-1200像素范围）
+                if 600 <= w <= 1200 and 600 <= h <= 1200:
+                    score += 30
+                elif w >= 500 and h >= 500:
                     score += 20
-                if w >= 500 and h >= 500:  # 较大尺寸
-                    score += 15
             
-            # 比例权重：data-ratio接近1的图片（正方形）
+            # 2. 比例权重：data-ratio接近1的图片
             if ratio:
                 try:
                     ratio_val = float(ratio)
-                    if 0.8 <= ratio_val <= 1.5:
-                        score += 15
+                    if 0.9 <= ratio_val <= 1.1:  # 接近正方形
+                        score += 35
+                    elif 0.8 <= ratio_val <= 1.3:
+                        score += 20
                 except:
                     pass
             
-            # CSS类权重
+            # 3. 位置权重：摸鱼人日历通常在文章前半部分
+            if total_images > 1:
+                # 前30%的图片得分更高（通常日历图在文章开头）
+                if index <= total_images * 0.3:
+                    score += 35
+                elif index <= total_images * 0.6:
+                    score += 20
+                else:
+                    score -= 10  # 后面的图片可能是其他内容
+            
+            # 4. CSS类权重
             if 'rich_pages' in img_class or 'wxw-img' in img_class:
                 score += 25
             if 'rich_media' in img_class:
+                score += 15
+            
+            # 5. Alt文本特征识别
+            calendar_keywords = ['摸鱼', '日历', 'calendar', '今天', '星期', '节日', '假期']
+            for keyword in calendar_keywords:
+                if keyword in alt_text:
+                    score += 20
+                    break
+            
+            # 6. URL特征权重
+            url_keywords = ['calendar', 'date', 'day', 'moyu', '摸鱼']
+            for keyword in url_keywords:
+                if keyword in img_url.lower():
+                    score += 15
+                    break
+            
+            # 7. 文件大小推测（通过URL参数）
+            # 摸鱼人日历图片通常比较大，包含丰富内容
+            if 'wx_fmt=png' in img_url or 'wx_fmt=jpeg' in img_url:
                 score += 10
             
-            # URL特征权重：包含常见日历图片特征的URL
-            img_url = img.get('url', '')
-            if any(keyword in img_url.lower() for keyword in ['calendar', 'date', 'day']):
-                score += 10
+            # 8. 排除明显不是日历的图片
+            exclude_keywords = ['avatar', 'logo', 'icon', 'qrcode', '二维码', '头像']
+            for keyword in exclude_keywords:
+                if keyword in alt_text or keyword in img_url.lower():
+                    score -= 30
+                    break
             
             calendar_candidates.append((score, img))
             
-            self.logger.debug(f"图片 {index}: 尺寸={width}x{height}, 类={img_class}, 得分={score}")
+            self.logger.debug(f"图片 {index}: 尺寸={width}x{height}, 比例={ratio}, 类={img_class}, 得分={score}")
         
         if not calendar_candidates:
-            # 如果没有合适的候选图片，返回中间位置的图片
-            middle_index = len(images) // 2
-            if middle_index < len(images):
-                main_image = images[middle_index]
-                if main_image.get('data_croporisrc'):
-                    return main_image['data_croporisrc']
-                else:
-                    return main_image['url']
+            # 如果没有合适的候选图片，选择第一张较大的图片
+            for img in images:
+                width = img.get('width')
+                if width and width.isdigit() and int(width) >= 300:
+                    if img.get('data_croporisrc'):
+                        return img['data_croporisrc']
+                    else:
+                        return img['url']
             return images[0]['url'] if images else None
         
         # 按得分排序，选择得分最高的图片
         calendar_candidates.sort(key=lambda x: x[0], reverse=True)
-        main_image = calendar_candidates[0][1]
+        best_candidate = calendar_candidates[0]
+        main_image = best_candidate[1]
         
-        self.logger.info(f"选择的日历图片: 索引={main_image.get('index')}, 得分={calendar_candidates[0][0]}, 尺寸={main_image.get('width')}x{main_image.get('height')}")
+        self.logger.info(f"选择的摸鱼人日历图片: 索引={main_image.get('index')}, 得分={best_candidate[0]}, 尺寸={main_image.get('width')}x{main_image.get('height')}")
         
         # 优先返回高质量原图
         if main_image.get('data_croporisrc'):
@@ -314,13 +352,69 @@ class MoyuScraper:
         else:
             return main_image['url']
     
-    def get_complete_moyu_info(self, url: str = None, file_path: str = None) -> Optional[Dict[str, Any]]:
+    def verify_calendar_image(self, image_url: str) -> bool:
+        """
+        验证图片是否为摸鱼人日历图片
+        
+        Args:
+            image_url: 图片URL
+            
+        Returns:
+            是否为摸鱼人日历图片
+        """
+        try:
+            # 下载图片进行验证
+            response = self.session.get(image_url, timeout=15)
+            response.raise_for_status()
+            
+            # 使用PIL打开图片
+            img = Image.open(io.BytesIO(response.content))
+            width, height = img.size
+            
+            # 摸鱼人日历的典型特征验证
+            aspect_ratio = width / height
+            
+            # 1. 尺寸验证：摸鱼人日历通常是正方形或接近正方形，且尺寸较大
+            if width < 400 or height < 400:
+                self.logger.debug(f"图片尺寸过小: {width}x{height}")
+                return False
+            
+            if not (0.7 <= aspect_ratio <= 1.4):
+                self.logger.debug(f"图片宽高比不符合日历特征: {aspect_ratio}")
+                return False
+            
+            # 2. 文件大小验证：摸鱼人日历内容丰富，文件通常较大
+            content_length = len(response.content)
+            if content_length < 50000:  # 小于50KB的图片可能不是日历
+                self.logger.debug(f"图片文件过小: {content_length} bytes")
+                return False
+            
+            # 3. 颜色复杂度验证：摸鱼人日历通常包含多种颜色
+            # 转换为RGB模式进行分析
+            if img.mode != 'RGB':
+                img = img.convert('RGB')
+            
+            # 简单的颜色复杂度检测：统计不同颜色的数量
+            colors = img.getcolors(maxcolors=256*256*256)
+            if colors and len(colors) < 100:  # 颜色种类太少可能不是复杂的日历图
+                self.logger.debug(f"图片颜色种类过少: {len(colors)}")
+                return False
+            
+            self.logger.info(f"图片验证通过: {width}x{height}, 文件大小: {content_length} bytes, 宽高比: {aspect_ratio:.2f}")
+            return True
+            
+        except Exception as e:
+            self.logger.warning(f"图片验证失败: {e}")
+            return True  # 验证失败时默认认为是有效图片
+    
+    def get_complete_moyu_info(self, url: str = None, file_path: str = None, verify_image: bool = True) -> Optional[Dict[str, Any]]:
         """
         获取完整的摸鱼人日历信息，包括文章链接和日历图片
         
         Args:
             url: 微信公众号文章页面URL（可选）
             file_path: 本地HTML文件路径（可选）
+            verify_image: 是否验证图片（可选，默认True）
             
         Returns:
             包含文章信息和图片链接的字典
@@ -340,6 +434,21 @@ class MoyuScraper:
         # 获取文章中的日历图片
         article_url = article_info['link']
         calendar_image = self.get_main_calendar_image(article_url)
+        
+        # 如果启用验证且找到了图片，进行验证
+        if calendar_image and verify_image:
+            if not self.verify_calendar_image(calendar_image):
+                self.logger.warning("图片验证失败，尝试获取备选图片")
+                # 如果验证失败，尝试获取其他候选图片
+                images = self.get_article_images(article_url)
+                if images and len(images) > 1:
+                    # 尝试第二个候选图片
+                    for img in images[1:]:
+                        candidate_url = img.get('data_croporisrc') or img['url']
+                        if self.verify_calendar_image(candidate_url):
+                            calendar_image = candidate_url
+                            self.logger.info(f"找到验证通过的备选图片: {calendar_image}")
+                            break
         
         # 合并信息
         complete_info = article_info.copy()

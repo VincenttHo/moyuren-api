@@ -4,3 +4,4 @@ html5lib>=1.1
 lxml>=4.6.3
 Flask>=2.0.1
 flask-cors>=3.0.10
+Pillow>=8.0.0
