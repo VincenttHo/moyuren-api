@@ -12,15 +12,15 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 # --- APT 加速配置 (使用国内镜像源) ---
 # 直接写入清华大学 (TUNA) 的 Debian / apt 镜像源
-RUN echo "deb https://mirrors.tuna.tsinghua.edu.cn/debian/ bullseye main contrib non-free" > /etc/apt/sources.list && \
-    echo "deb https://mirrors.tuna.tsinghua.edu.cn/debian/ bullseye-updates main contrib non-free" >> /etc/apt/sources.list && \
-    echo "deb https://mirrors.tuna.tsinghua.edu.cn/debian-security/ bullseye-security main contrib non-free" >> /etc/apt/sources.list && \
-    apt-get update && \
-    apt-get install -y \
-        ca-certificates \
-        gcc \
-        curl \
-        && rm -rf /var/lib/apt/lists/*
+# RUN echo "deb https://mirrors.tuna.tsinghua.edu.cn/debian/ bullseye main contrib non-free" > /etc/apt/sources.list && \
+#     echo "deb https://mirrors.tuna.tsinghua.edu.cn/debian/ bullseye-updates main contrib non-free" >> /etc/apt/sources.list && \
+#     echo "deb https://mirrors.tuna.tsinghua.edu.cn/debian-security/ bullseye-security main contrib non-free" >> /etc/apt/sources.list && \
+#     apt-get update && \
+#     apt-get install -y \
+ #        ca-certificates \
+ #        gcc \
+ #        curl \
+ #        && rm -rf /var/lib/apt/lists/*
 # --- APT 加速结束 ---
 
 # 复制 requirements 文件
