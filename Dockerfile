@@ -15,10 +15,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 # 1. 备份默认的 sources.list 文件
 # 2. 替换为清华大学 (TUNA) 的 Debian / apt 镜像源
 # 3. 安装系统依赖并清理
-RUN echo "" > /etc/apt/sources.list && \
-    echo "deb https://mirrors.tuna.tsinghua.edu.cn/debian/ bullseye main contrib non-free" >> /etc/apt/sources.list && \
-    echo "deb https://mirrors.tuna.tsinghua.edu.cn/debian/ bullseye-updates main contrib non-free" >> /etc/apt/sources.list && \
-    echo "deb https://mirrors.tuna.tsinghua.edu.cn/debian-security/ bullseye-security main contrib non-free" >> /etc/apt/sources.list && \
+RUN sed -i 's/deb.debian.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apt/sources.list && \
+    sed -i 's/security.debian.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apt/sources.list && \
     apt-get update && \
     apt-get install -y \
         # 必须先安装 ca-certificates 才能确保 https 源可用
