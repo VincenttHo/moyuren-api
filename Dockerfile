@@ -15,17 +15,13 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 # 1. 备份默认的 sources.list 文件
 # 2. 替换为清华大学 (TUNA) 的 Debian / apt 镜像源
 # 3. 安装系统依赖并清理
-RUN cp /etc/apt/sources.list /etc/apt/sources.list.bak && \
-    echo "deb https://mirrors.tuna.tsinghua.edu.cn/debian/ bullseye main contrib non-free" > /etc/apt/sources.list && \
+RUN echo "deb https://mirrors.tuna.tsinghua.edu.cn/debian/ bullseye main contrib non-free" > /etc/apt/sources.list && \
     echo "deb https://mirrors.tuna.tsinghua.edu.cn/debian/ bullseye-updates main contrib non-free" >> /etc/apt/sources.list && \
     echo "deb https://mirrors.tuna.tsinghua.edu.cn/debian-security/ bullseye-security main contrib non-free" >> /etc/apt/sources.list && \
     apt-get update && \
     apt-get install -y \
         gcc \
         curl \
-        # 可选：如果需要，可以删除备份文件和恢复默认源，但通常不需要在容器中恢复
-        # rm -f /etc/apt/sources.list && \
-        # mv /etc/apt/sources.list.bak /etc/apt/sources.list && \
         rm -rf /var/lib/apt/lists/*
 # --- APT 加速结束 ---
 
