@@ -28,8 +28,7 @@ COPY requirements.txt .
 
 # --- PIP 加速配置 (使用国内镜像源) ---
 # 使用 -i 参数指定清华大学的 pip 镜像源
-RUN pip install --upgrade pip && \
-    pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
+RUN pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple --trusted-host pypi.tuna.tsinghua.edu.cn
 # --- PIP 加速结束 ---
 
 # 复制应用代码
