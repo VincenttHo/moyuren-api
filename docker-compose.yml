@@ -10,8 +10,6 @@ services:
       - PORT=5000
       - DEBUG=false
     restart: unless-stopped
-    networks:
-      - astrbot_default
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
       interval: 30s
@@ -22,7 +20,11 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.moyu-api.rule=Host(`localhost`)"
       - "traefik.http.services.moyu-api.loadbalancer.server.port=5000"
+    # 添加 networks 部分到 moyu-api 服务
+    networks:
+      - bot_astrbot_network # 指定服务连接到此网络
 
+# 在配置文件的顶层添加 networks 部分，并指定外部网络
 networks:
-  astrbot_default:
-    external: true
+  bot_astrbot_network:
+    external: true # 声明这是一个外部网络
