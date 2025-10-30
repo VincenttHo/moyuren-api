@@ -1,5 +1,4 @@
 # 使用 Python 3.11 slim image 作为基础镜像
-# 默认的基础镜像拉取可能仍会较慢，但后续 apt 和 pip 会加速
 FROM python:3.11-slim
 
 # 设置工作目录
@@ -12,15 +11,13 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
 # --- APT 加速配置 (使用国内镜像源) ---
-# 1. 备份默认的 sources.list 文件
-# 2. 替换为清华大学 (TUNA) 的 Debian / apt 镜像源
-# 3. 安装系统依赖并清理
-RUN sed -i 's/deb.debian.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apt/sources.list && \
-    sed -i 's/security.debian.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apt/sources.list && \
+# 直接写入清华大学 (TUNA) 的 Debian / apt 镜像源
+RUN echo "deb https://mirrors.tuna.tsinghua.edu.cn/debian/ bullseye main contrib non-free" > /etc/apt/sources.list && \
+    echo "deb https://mirrors.tuna.tsinghua.edu.cn/debian/ bullseye-updates main contrib non-free" >> /etc/apt/sources.list && \
+    echo "deb https://mirrors.tuna.tsinghua.edu.cn/debian-security/ bullseye-security main contrib non-free" >> /etc/apt/sources.list && \
     apt-get update && \
     apt-get install -y \
-        # 必须先安装 ca-certificates 才能确保 https 源可用
-        ca-certificates \ 
+        ca-certificates \
         gcc \
         curl \
         && rm -rf /var/lib/apt/lists/*
