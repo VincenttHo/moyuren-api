@@ -127,7 +127,7 @@ class MoyuScraper:
                 # 过滤出微信图片链接
                 if 'mmbiz.qpic.cn' in img_url:
                     images.append(img_info)
-            
+
             self.logger.info(f"找到 {len(images)} 张微信图片")
             return images if images else None
             
@@ -151,34 +151,30 @@ class MoyuScraper:
             return None
         
         # 核心图片匹配逻辑：
-        # 1. 优先查找URL中包含'640?wx_fmt=png&from=appmsg'的图片
+        # 1. 最高优先级：优先查找有data_croporisrc值的图片
+        for img in images:
+            if img.get('data_croporisrc'):
+                self.logger.info(f"找到具有data_croporisrc的高质量图片: {img['data_croporisrc']}")
+                return img['data_croporisrc']
+        
+        # 2. 次优先级：查找URL中包含'640?wx_fmt=png&from=appmsg'的图片
         for img in images:
             img_url = img.get('url', '')
             if '640?wx_fmt=png&from=appmsg' in img_url:
                 self.logger.info(f"找到符合条件的日历图片: {img_url}")
-                # 优先返回高质量原图
-                if img.get('data_croporisrc'):
-                    return img['data_croporisrc']
-                else:
-                    return img_url
+                return img_url
         
-        # 2. 如果没找到完全匹配的，返回第二张图片
+        # 3. 如果没找到完全匹配的，返回第二张图片
         if len(images) >= 2:
             img = images[1]  # 返回第二张图片
             self.logger.info(f"返回第二张图片作为日历图片")
-            if img.get('data_croporisrc'):
-                return img['data_croporisrc']
-            else:
-                return img['url']
+            return img['url']
         
-        # 3. 如果连两张图片都没有，返回第一张
+        # 4. 如果连两张图片都没有，返回第一张
         if images:
             img = images[0]
             self.logger.warning(f"只找到一张图片，返回第一张作为日历图片")
-            if img.get('data_croporisrc'):
-                return img['data_croporisrc']
-            else:
-                return img['url']
+            return img['url']
         
         return None
     
